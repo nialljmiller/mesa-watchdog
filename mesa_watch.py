@@ -65,39 +65,45 @@ class MesaRemoteWatcher:
         except Exception as e:
             print(f"[X] Connection error: {e}")
 
+    
     def sync_and_test(self, branch):
-        print(f"[+] Syncing local dev repository at {self.local_path}...")
-        # Define the path to the internal mesa_test workspace sandbox
-        sandbox_path = os.path.expanduser("~/.mesa_test/work")
-        
-        try:
-            # 1. Sync your local development repository directory
-            subprocess.run(["git", "fetch", "origin"], cwd=self.local_path, check=True)
-            subprocess.run(["git", "checkout", branch], cwd=self.local_path, check=True)
-            subprocess.run(["git", "pull", "origin", branch], cwd=self.local_path, check=True)
+            print(f"[+] Syncing local dev repository at {self.local_path}...")
+            sandbox_path = os.path.expanduser("~/.mesa_test/work")
             
-            # 2. Sync the internal mesa_test sandbox directory if it exists
-            if os.path.exists(sandbox_path):
-                print(f"[+] Syncing internal mesa_test sandbox at {sandbox_path}...")
-                subprocess.run(["git", "fetch", "origin"], cwd=sandbox_path, check=True)
-                subprocess.run(["git", "checkout", branch], cwd=sandbox_path, check=True)
-                subprocess.run(["git", "pull", "origin", branch], cwd=sandbox_path, check=True)
-
-            # 3. Trigger the MESA test suite
-            print("\n" + "="*60)
-            print(f"[!] Target Branch: {branch}")
-            print(f"[!] Launching automated MESA Test...")
-            print(f"[!] Executing: {self.test_command}")
-            print("="*60 + "\n")
-            
-            process = subprocess.Popen(self.test_command, shell=True, stdout=sys.stdout, stderr=sys.stderr)
-            process.communicate()
-            
-        except subprocess.CalledProcessError as git_err:
-            print(f"[X] Git operation failed: {git_err}")
-        except Exception as e:
-            print(f"[X] Error running test automation: {e}")
-
+            try:
+                # 1. Sync your local development repository directory
+                subprocess.run(["git", "fetch", "origin"], cwd=self.local_path, check=True)
+                subprocess.run(["git", "checkout", branch], cwd=self.local_path, check=True)
+                subprocess.run(["git", "pull", "origin", branch], cwd=self.local_path, check=True)
+                
+                # 2. Sync the internal mirror sandbox safely
+                if os.path.exists(sandbox_path):
+                    print(f"[+] Syncing internal mesa_test sandbox at {sandbox_path}...")
+                    
+                    # Step A: Detach HEAD so Git doesn't lock the branch during a mirror fetch
+                    subprocess.run(["git", "checkout", "--detach"], cwd=sandbox_path, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    
+                    # Step B: Now fetch is safe because no local branch is active
+                    subprocess.run(["git", "fetch", "origin"], cwd=sandbox_path, check=True)
+                    
+                    # Step C: Point HEAD to your target branch and force-align the working tree
+                    subprocess.run(["git", "checkout", branch], cwd=sandbox_path, check=True)
+                    subprocess.run(["git", "reset", "--hard", f"origin/{branch}"], cwd=sandbox_path, check=True)
+    
+                # 3. Trigger the MESA test suite
+                print("\n" + "="*60)
+                print(f"[!] Target Branch: {branch}")
+                print(f"[!] Launching automated MESA Test...")
+                print(f"[!] Executing: {self.test_command}")
+                print("="*60 + "\n")
+                
+                process = subprocess.Popen(self.test_command, shell=True, stdout=sys.stdout, stderr=sys.stderr)
+                process.communicate()
+                
+            except subprocess.CalledProcessError as git_err:
+                print(f"[X] Git operation failed: {git_err}")
+            except Exception as e:
+                print(f"[X] Error running test automation: {e}")
 
 
 
