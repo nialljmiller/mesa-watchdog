@@ -1,0 +1,9 @@
+# mesa_watch.yml
+github_repo: "MESAHub/mesa"  # Change this to your fork if you are testing on a fork
+local_repo_path: "/home/nill/MESA/mesa"
+test_command: "mesa_test test custom_colors"
+poll_interval_seconds: 60     # How often to check GitHub for updates
+
+# Optional: Put a GitHub Personal Access Token (PAT) here to avoid API rate limits
+# If empty, GitHub limits unauthenticated requests to 60 per hour.
+github_token: ""
