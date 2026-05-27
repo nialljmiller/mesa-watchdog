@@ -31,10 +31,6 @@ class MesaRemoteWatcher:
             response = requests.get(self.api_url, headers=self.get_headers())
             if response.status_code == 200:
                 events = response.json()
-                if not events:
-                    return
-
-                # Filter for the latest PushEvent
                 push_events = [e for e in events if e['type'] == 'PushEvent']
                 if not push_events:
                     return
@@ -42,32 +38,40 @@ class MesaRemoteWatcher:
                 latest_push = push_events[0]
                 event_id = latest_push['id']
 
-                # On startup, just record the latest event ID without running tests
                 if self.is_first_run:
                     self.last_processed_event_id = event_id
                     self.is_first_run = False
-                    print(f"[+] Synced with GitHub. Baseline event ID: {event_id}")
                     return
 
-                # If we see a new event ID, someone pushed to GitHub
                 if event_id != self.last_processed_event_id:
                     self.last_processed_event_id = event_id
                     
-                    # Extract branch name (e.g., 'refs/heads/main' -> 'main')
+                    # Extract branch and commit message
                     ref = latest_push['payload']['ref']
                     branch = ref.replace('refs/heads/', '')
                     
-                    print(f"\n[!] New push detected on GitHub branch: '{branch}'")
-                    self.sync_and_test(branch)
+                    commits = latest_push['payload'].get('commits', [])
+                    commit_msg = " ".join([c['message'] for c in commits]).upper()
+                    
+                    # 1. Skip logic: Highest priority
+                    if 'CI_SKIP' in commit_msg:
+                        print(f"\n[!] 'CI_SKIP' detected in commit message. Skipping tests for branch: '{branch}'")
+                        return
 
-            elif response.status_code == 403:
-                print("[X] GitHub API rate limit hit. Consider adding a github_token to mesa_watch.yml.")
-            else:
-                print(f"[X] Failed to fetch GitHub events. Status code: {response.status_code}")
+                    # 2. VEGA logic: Upgrade to full test
+                    original_test_command = self.test_command
+                    if 'VEGA' in commit_msg:
+                        print(f"\n[!] 'VEGA' detected! Upgrading to FULL test suite.")
+                        self.test_command = "mesa_test test"
+                    
+                    print(f"\n[!] New push detected on: '{branch}'")
+                    self.sync_and_test(branch)
+                    
+                    # 3. Reset to original command
+                    self.test_command = original_test_command
+
         except Exception as e:
             print(f"[X] Connection error: {e}")
-
-
 
     def sync_and_test(self, branch):
         print(f"[+] Syncing local dev repository at {self.local_path}...")
