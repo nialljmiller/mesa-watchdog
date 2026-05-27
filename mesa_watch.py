@@ -6,10 +6,12 @@ import yaml
 import requests
 
 class MesaRemoteWatcher:
+    
     def __init__(self, config):
         self.config = config
         self.repo = config.get('github_repo')
         self.local_path = os.path.abspath(config.get('local_repo_path'))
+        self.build_submit_command = config.get('build_submit_command', '') # <-- Read new config
         self.test_command = config.get('test_command')
         self.poll_interval = config.get('poll_interval_seconds', 60)
         self.token = config.get('github_token', '')
@@ -78,19 +80,18 @@ class MesaRemoteWatcher:
             # 2. Sync the internal mirror sandbox safely
             if os.path.exists(sandbox_path):
                 print(f"[+] Syncing internal mesa_test sandbox at {sandbox_path}...")
-                
-                # Step A: Detach HEAD so Git doesn't lock the active branch during a mirror fetch
+                subprocess.run(["git", "reset", "--hard"], cwd=sandbox_path, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 subprocess.run(["git", "checkout", "--detach"], cwd=sandbox_path, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                
-                # Step B: Fetch updates safely into mirror references
                 subprocess.run(["git", "fetch", "origin"], cwd=sandbox_path, check=True)
-                
-                # Step C: Point HEAD to your branch and clean up the working directory
                 subprocess.run(["git", "checkout", branch], cwd=sandbox_path, check=True)
-                # Dropped 'origin/' prefix to match the sandbox's mirror layout structure
-                subprocess.run(["git", "reset", "--hard", branch], cwd=sandbox_path, check=True)
+                subprocess.run(["git", "reset", "--hard"], cwd=sandbox_path, check=True)
 
-            # 3. Trigger the MESA test suite
+            # 3. Optional: Submit baseline build status to TestHub if configured
+            if self.build_submit_command:
+                print(f"[+] Reporting overall build compilation status to TestHub...")
+                subprocess.run(self.build_submit_command, shell=True, sys.stdout=sys.stdout, stderr=sys.stderr)
+
+            # 4. Trigger the individual MESA test suite
             print("\n" + "="*60)
             print(f"[!] Target Branch: {branch}")
             print(f"[!] Launching automated MESA Test...")
@@ -101,10 +102,9 @@ class MesaRemoteWatcher:
             process.communicate()
             
         except subprocess.CalledProcessError as git_err:
-            print(f"[X] Git operation failed: {git_err}")
+            print(f"[X] Git/Shell operation failed: {git_err}")
         except Exception as e:
             print(f"[X] Error running test automation: {e}")
-
 
 
     def start(self):
