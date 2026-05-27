@@ -67,6 +67,8 @@ class MesaRemoteWatcher:
         except Exception as e:
             print(f"[X] Connection error: {e}")
 
+
+
     def sync_and_test(self, branch):
         print(f"[+] Syncing local dev repository at {self.local_path}...")
         sandbox_path = os.path.expanduser("~/.mesa_test/work")
@@ -86,10 +88,11 @@ class MesaRemoteWatcher:
                 subprocess.run(["git", "checkout", branch], cwd=sandbox_path, check=True)
                 subprocess.run(["git", "reset", "--hard"], cwd=sandbox_path, check=True)
 
-            # 3. Optional: Submit baseline build status to TestHub if configured
+            # 3. Submit build status if configured
             if self.build_submit_command:
                 print(f"[+] Reporting overall build compilation status to TestHub...")
-                subprocess.run(self.build_submit_command, shell=True, sys.stdout=sys.stdout, stderr=sys.stderr)
+                # Corrected: Passing sys.stdout directly as the file handle
+                subprocess.run(self.build_submit_command, shell=True, stdout=sys.stdout, stderr=sys.stderr)
 
             # 4. Trigger the individual MESA test suite
             print("\n" + "="*60)
