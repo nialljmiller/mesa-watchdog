@@ -147,20 +147,33 @@ class MesaRemoteWatcher:
 
 
     def start(self):
+        # 1. Environment Check
         validate_environment()
-        logging.info(f"MESA Cloud Watchdog active. Monitoring: {self.repo}")
-        print(f"[+] MESA Cloud Watchdog active.")
-        print(f"[+] Monitoring Remote Repo: {self.repo}")
-        print(f"[+] Local Repo Tracked:     {self.local_path}")
-        print(f"[+] Check Interval:         {self.poll_interval}s")
+        
+        # 2. Formal Logging to file
+        logging.info(f"MESA Cloud Watchdog initialized. Monitoring: {self.repo}")
+        
+        # 3. Human-readable terminal verbosity
+        print("\n" + "="*60)
+        print("  MESA Cloud Watchdog System Online")
+        print("="*60)
+        print(f"[+] Remote Repo:    {self.repo}")
+        print(f"[+] Local Tracked:  {self.local_path}")
+        print(f"[+] Check Interval: {self.poll_interval}s")
+        print("[+] Log File:       watchdog.log")
         print("[+] Press Ctrl+C to exit.\n")
-
+        
+        # 4. The Loop
         try:
             while True:
+                # We do not need a print here; check_github() 
+                # will print its own progress when it detects activity
                 self.check_github()
                 time.sleep(self.poll_interval)
         except KeyboardInterrupt:
+            print("\n[-] Keyboard interrupt received.")
             logging.info("Shutting down cleanly...")
+            sys.exit(0)
 
 
 if __name__ == "__main__":
