@@ -109,40 +109,37 @@ class MesaRemoteWatcher:
         sandbox_path = os.path.expanduser("~/.mesa_test/work")
         
         try:
-            # 1. Sync your local development repository directory
+            # 1. Sync dev repo
             subprocess.run(["git", "fetch", "origin"], cwd=self.local_path, check=True)
             subprocess.run(["git", "checkout", branch], cwd=self.local_path, check=True)
             subprocess.run(["git", "pull", "origin", branch], cwd=self.local_path, check=True)
             
-            # 2. Sync the internal mirror sandbox safely
+            # 2. Sync and CLEAN/INSTALL sandbox
             if os.path.exists(sandbox_path):
-                print(f"[+] Syncing internal mesa_test sandbox at {sandbox_path}...")
+                print(f"[+] Performing clean rebuild of sandbox at {sandbox_path}...")
+                
+                # A: Reset to clean state, detach, and fetch
                 subprocess.run(["git", "reset", "--hard"], cwd=sandbox_path, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 subprocess.run(["git", "checkout", "--detach"], cwd=sandbox_path, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 subprocess.run(["git", "fetch", "origin"], cwd=sandbox_path, check=True)
+                
+                # B: Checkout and reset to the exact branch head
                 subprocess.run(["git", "checkout", branch], cwd=sandbox_path, check=True)
                 subprocess.run(["git", "reset", "--hard"], cwd=sandbox_path, check=True)
+                
+                # C: THE CRITICAL STEP: Clean and Reinstall
+                # We use '&&' to ensure clean finishes before install begins
+                subprocess.run("./clean && ./install", shell=True, cwd=sandbox_path, check=True)
 
-            # 3. Submit build status if configured
+            # 3. Submit/Test
             if self.build_submit_command:
-                print(f"[+] Reporting overall build compilation status to TestHub...")
-                # Corrected: Passing sys.stdout directly as the file handle
                 subprocess.run(self.build_submit_command, shell=True, stdout=sys.stdout, stderr=sys.stderr)
-
-            # 4. Trigger the individual MESA test suite
-            print("\n" + "="*60)
-            print(f"[!] Target Branch: {branch}")
-            print(f"[!] Launching automated MESA Test...")
-            print(f"[!] Executing: {self.test_command}")
-            print("="*60 + "\n")
             
             process = subprocess.Popen(self.test_command, shell=True, stdout=sys.stdout, stderr=sys.stderr)
             process.communicate()
             
         except subprocess.CalledProcessError as git_err:
             print(f"[X] Git/Shell operation failed: {git_err}")
-        except Exception as e:
-            print(f"[X] Error running test automation: {e}")
 
 
 
