@@ -5,13 +5,44 @@ import subprocess
 import yaml
 import requests
 
-class MesaRemoteWatcher:
+
+
+import os
+import sys
+import time
+import subprocess
+import yaml
+import requests
+import logging
+from logging.handlers import RotatingFileHandler
+
+# --- Standardization: Setup Logger ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        RotatingFileHandler("watchdog.log", maxBytes=1024*1024*5, backupCount=2),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+
+def validate_environment():
+    """Ensure dependencies are met before starting."""
+    # Check if mesa_test is in PATH
+    if subprocess.call("command -v mesa_test", shell=True, stdout=subprocess.DEVNULL) != 0:
+        logging.error("mesa_test not found in $PATH. Please ensure your MESA environment is sourced.")
+        sys.exit(1)
     
+    # Check if MESA_DIR is set
+    if not os.environ.get("MESA_DIR"):
+        logging.warning("MESA_DIR environment variable is not set. The script might fail.")
+
+class MesaRemoteWatcher:
     def __init__(self, config):
         self.config = config
         self.repo = config.get('github_repo')
-        self.local_path = os.path.abspath(config.get('local_repo_path'))
-        self.build_submit_command = config.get('build_submit_command', '') # <-- Read new config
+        self.local_path = os.path.abspath(os.path.expandvars(config.get('local_repo_path')))
+        self.build_submit_command = config.get('build_submit_command', '')
         self.test_command = config.get('test_command')
         self.poll_interval = config.get('poll_interval_seconds', 60)
         self.token = config.get('github_token', '')
@@ -114,16 +145,23 @@ class MesaRemoteWatcher:
             print(f"[X] Error running test automation: {e}")
 
 
+
     def start(self):
+        validate_environment()
+        logging.info(f"MESA Cloud Watchdog active. Monitoring: {self.repo}")
         print(f"[+] MESA Cloud Watchdog active.")
         print(f"[+] Monitoring Remote Repo: {self.repo}")
         print(f"[+] Local Repo Tracked:     {self.local_path}")
         print(f"[+] Check Interval:         {self.poll_interval}s")
         print("[+] Press Ctrl+C to exit.\n")
-        
-        while True:
-            self.check_github()
-            time.sleep(self.poll_interval)
+
+        try:
+            while True:
+                self.check_github()
+                time.sleep(self.poll_interval)
+        except KeyboardInterrupt:
+            logging.info("Shutting down cleanly...")
+
 
 if __name__ == "__main__":
     config_file = 'mesa_watch.yml'
