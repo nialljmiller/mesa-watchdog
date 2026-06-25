@@ -1,9 +1,23 @@
-# mesa_watch.yml
 github_repo: "MESAHub/mesa"
 local_repo_path: "/home/nill/MESA/mesa"
-build_submit_command: "mesa_test submit --empty"  # <-- Added Bill's suggested line
-test_command: "mesa_test test custom_colors"
 poll_interval_seconds: 60
-
-# Optional: Put a GitHub Personal Access Token (PAT) here to avoid API rate limits
+build_submit_command: "mesa_test submit --empty"
+test_command: "mesa_test test custom_colors"
 github_token: ""
+verbose: true
+
+rules:
+  watch_paths:
+    - "colors/"
+    - "star/test_suite/custom_colors/"
+  branches:
+    always_test_keywords:
+      - "customcolors"
+      - "filter_interp"
+    exclude_keywords:
+      - "wip"
+  commits:
+    full_run_keywords:
+      - "VEGA"
+    skip_keywords:
+      - "CI_SKIP"
