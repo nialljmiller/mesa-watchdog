@@ -1,12 +1,17 @@
 github_repo: "MESAHub/mesa"
 local_repo_path: "/home/nill/MESA/mesa"
-poll_interval_seconds: 60
+poll_interval_seconds: 120
 build_submit_command: "mesa_test submit --empty"
 test_command: "mesa_test test custom_colors"
+dispatch_interval_seconds: 18000
+dispatch_state_path: "~/.mesa_test/last_idle_dispatch"
+dispatch_command: "mesa_test install_and_test best"
 github_token: ""
 verbose: true
 
 rules:
+  ignore_skip_authors:
+    - "nialljmiller"
   watch_paths:
     - "colors/"
     - "star/test_suite/custom_colors/"
