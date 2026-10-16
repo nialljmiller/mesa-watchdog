@@ -6,19 +6,18 @@ The last attempt time persists in ~/.mesa_test/last_idle_dispatch; failures,
 timeouts and an empty queue also count toward the interval.
 
 background_test.py asks TestHub for a build with `mesa_test install best`,
-submits the build, then runs and submits exactly one case. It rotates through:
+submits the build, then runs and submits all three short cases in each batch:
 
 - binary/jdot_gr_check: about 41 seconds on Vega
 - astero/fast_from_file: about 93 seconds
 - binary/jdot_ls_check: about 96 seconds
 
 These are observed wall times from October 14, 2026, not guarantees.
-The rotation persists in ~/.mesa_test/background_test_index.
 Optional inlists and convergence runs are disabled for these background cases.
 TestHub still selects the commit/build modes, but the local shortlist selects
 which test to run; this does not drain TestHub's test queue.
 
-GNU timeout limits the entire background build/test/submission to 55 minutes,
+GNU timeout limits the entire background build/tests/submissions to 55 minutes,
 with forced termination after another 30 seconds if needed. A timeout may
 leave an unfulfilled claim until TestHub expires it. Colors runs have their
 existing behavior and are not subject to this background timeout.
